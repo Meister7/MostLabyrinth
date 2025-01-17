@@ -1,0 +1,72 @@
+workflows:
+  unity-ios-workflow:
+    name: iOS Workflow
+    max_build_duration: 120
+    integrations:
+      app_store_connect: "acc3"
+    environment:
+      xcode: 16.1
+      groups:
+        - 1DEFAULT
+      vars:
+        XCODE_PROJECT: "MostLabyrinth.xcodeproj" #<----------------SET HERE
+        XCODE_SCHEME: "MostLabyrinth" #<----------------SET HERE
+        CERTIFICATE_PRIVATE_KEY: |
+              -----BEGIN PRIVATE KEY-----
+              MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDLTPqjiyVl4R3+
+              bBEas0ZW3iwskIBe7NnOiKHJGsmrcoROC2WH1I1ACRu6U6Eds4YjKDKDF5hGMZly
+              y2aLVRKqiX0scxRjeRXGXeyLgMLaIMlIOwJiuwX50TmKk9l2J7w29J3WSecVuW0S
+              l0RUm1dRdgajyU+ArnLSAuAuX4q4vtbUrDg95GdNgcQmPElS/MFq083jSmYEqHWg
+              VOKjkfpzkzsY/eSeIJI8DbIbwJEDtg+7CjX2Qs2tEPzkRFnqeVVl98BZMG6n28Tq
+              YFPpX3QcJArNdC48yY1tKN/OK06TSLbfWS1ZSxZaXyt9GkG8zsNOS2XNJatKIF9O
+              LuOlGel/AgMBAAECggEAV+x1c3iQ1oRrO+cR6KnDEHuqwCVIl4U416VozvhaYt82
+              kChGo12OLzUhPE7B3f4P07GlUuPH9AesdSS5tyW2WnH25Fvq4/BwtedWD6lC3CKU
+              2rvGltuKxJWznJa/1GVv9ZaKkqxImDEnFoS8RRkfxPfV/EzqqN0JhIFA4l1oueft
+              UDP67GowvXhRwPmH+icxUgxwM/BLkdGbJRftntOcvoOFApvJPzZX6xGAU00HxDw9
+              1d8++4gKZvplNjeEIqeanQRxJ/lJZf8vdC1fbLszbZ7sjcRuz1Xe/ADNg2zhjnn8
+              5oKgCUwwfLIR1f2o2TT7LgHBtScgYK7KTNruKhh4SQKBgQD14MstdatvDoZ8tyJ3
+              CVNcIwg/doYs87Vae2e+bqnlHyCK1cd4ccttV+4s/rQW/NtgDZp0JAAsP1p6MnZy
+              ZBY919a3UEGa2q7YVH+nsPexvBX/JC60HcEZ51TUQhYVytX57IQFjOM9D6Vd1ucA
+              9PKi0Tk3ZHCKOaT8BZ2t/ScZ6QKBgQDTq3rhIbqqASEoTo9xGL9A4Qx2glSeR0Ml
+              /pSA4dv4f5ikGGAaLiI4X8EtNx795HEqA/+/VusY11cRLb6edWeXkeUY1lTT1cTL
+              R+/lNQa0M3XfN58GTif3OYumBl1C+hn8WDVKzrF4k+TZjGQizx040QZHlQipbXKI
+              NIcMYRvfJwKBgQDL7v/2G5PuT/jh9i9i1dxLHk9X++F75UM04ggBHd5SSIgAPyHr
+              105nybeloDgUnPMDbyT9UWLHUGCl27b8V+FOt/fCIZHYc6rziNo8Zv56b0s7THJk
+              OA2Sg5mLV6jjuFHTsgUqaVmMqq5476a313Jr8ubm96qUKw2ZbrsCtWa6CQKBgGIq
+              cxCaDfHuGCyTUp8G9Rvnw1nq08ecER471S94kAXNV0MzMs6xeplefz6zA6KIIZt0
+              w1U/wESDChQjfPYMSQDYXsGIFUsxJtWIBU/tqbBE9XOSXiQUdyCHBab36KS5TPfl
+              CMIq3c+n90iVfZNPLqQ8/IaSLbQ12BonEkLBfqWdAoGBAJZ2kAtlbO4bVYCPUs61
+              V1/F4qiy/rpgrlRznbSM+BAONR2/PumBo2pHQkvCtymNgAylyqPVCKLTIQ0AQu9T
+              Cm0suMWfbb6DHUAAw9sMTFFNsFfj14GtaY/v9df2ifgpToZvKebJT6ag+tcWW5Cz
+              bmWaxZnxs9zymaaGnJAQQLLQ
+              -----END PRIVATE KEY-----
+        
+    scripts:
+      - name: Delete derived data
+        script: rm -rf ~/Library/Developer/Xcode/DerivedData
+      - name: Set up keychain to be used for code signing using Codemagic CLI 'keychain' command
+        script: keychain initialize
+      - name: Fetch signing files for main target
+        script: |
+          app-store-connect fetch-signing-files "com.KaurHarchanSinghJaasphreet.MostLabyrinth" \
+            --type IOS_APP_STORE \
+            --create
+      - name: Set up signing certificate
+        script: keychain add-certificates
+      - name: Set up code signing settings on Xcode project
+        script: xcode-project use-profiles
+      - name: Set build number manually
+        script: agvtool new-version -all 6
+      - name: Build ipa for distribution
+        script: |
+          xcode-project build-ipa \
+            --project "$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME" \
+            --archive-xcargs "CODE_SIGN_STYLE=Auto"
+      - name: Publish to App Store Connect
+        script: |
+          app-store-connect publish --path "/Users/builder/clone/build/ios/ipa/MostLabyrinth.ipa"
+    
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
