@@ -44,10 +44,17 @@ struct MusicView: View {
                             playBackgroundMusic()
                         }
                     } label: {
-                        RemoteImage(url: isSoundOff ? images.musicOffBtn : images.musicOnBtn)
-                            .scaledToFit()
-                            .frame(width: UIScreen.main.bounds.width * 0.4)
-                            .padding(.bottom, UIScreen.main.bounds.height * 0.4)
+                        if isSoundOff {
+                            RemoteImage(url: images.musicOffBtn)
+                                .scaledToFit()
+                                .frame(width: UIScreen.main.bounds.width * 0.4)
+                                .padding(.bottom, UIScreen.main.bounds.height * 0.4)
+                        } else {
+                            RemoteImage(url: images.musicOnBtn)
+                                .scaledToFit()
+                                .frame(width: UIScreen.main.bounds.width * 0.4)
+                                .padding(.bottom, UIScreen.main.bounds.height * 0.4)
+                        }
                     }
                 }
             }
@@ -89,10 +96,17 @@ struct MusicView: View {
                             playBackgroundMusic()
                         }
                     } label: {
-                        RemoteImage(url: isSoundOff ? images.musicOffBtn : images.musicOnBtn)
-                            .scaledToFit()
-                            .frame(width: UIScreen.main.bounds.width * 0.6)
-                            .padding(.bottom, UIScreen.main.bounds.height * 0.5)
+                        if isSoundOff {
+                            RemoteImage(url: images.musicOffBtn)
+                                .scaledToFit()
+                                .frame(width: UIScreen.main.bounds.width * 0.5)
+                                .padding(.bottom, UIScreen.main.bounds.height * 0.5)
+                        } else {
+                            RemoteImage(url: images.musicOnBtn)
+                                .scaledToFit()
+                                .frame(width: UIScreen.main.bounds.width * 0.5)
+                                .padding(.bottom, UIScreen.main.bounds.height * 0.5)
+                        }
                     }
                     
                 }

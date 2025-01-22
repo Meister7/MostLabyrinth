@@ -75,7 +75,7 @@ struct MenuView: View {
                         RemoteImage(url: images.playBtn)
                             .scaledToFit()
                     }
-                    .frame(width: UIScreen.main.bounds.width * 0.6)
+                    .frame(width: UIScreen.main.bounds.width * 0.5)
                     
                     Button {
                         screen = .labyrinth
@@ -83,7 +83,7 @@ struct MenuView: View {
                         RemoteImage(url: images.labyrinthBtn)
                             .scaledToFit()
                     }
-                    .frame(width: UIScreen.main.bounds.width * 0.6)
+                    .frame(width: UIScreen.main.bounds.width * 0.5)
                     
                     Button {
                         screen = .character
@@ -91,7 +91,7 @@ struct MenuView: View {
                         RemoteImage(url: images.charBtn)
                             .scaledToFit()
                     }
-                    .frame(width: UIScreen.main.bounds.width * 0.6)
+                    .frame(width: UIScreen.main.bounds.width * 0.5)
                     
                     Button {
                         screen = .music
@@ -99,7 +99,7 @@ struct MenuView: View {
                         RemoteImage(url: images.musicBtn)
                             .scaledToFit()
                     }
-                    .frame(width: UIScreen.main.bounds.width * 0.6)
+                    .frame(width: UIScreen.main.bounds.width * 0.5)
                     
                     Button {
                         screen = .policy
@@ -107,7 +107,7 @@ struct MenuView: View {
                         RemoteImage(url: images.policyBtn)
                             .scaledToFit()
                     }
-                    .frame(width: UIScreen.main.bounds.width * 0.6)
+                    .frame(width: UIScreen.main.bounds.width * 0.5)
                 }
                 .padding(.bottom, UIScreen.main.bounds.height * 0.3)
             }

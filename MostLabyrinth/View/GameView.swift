@@ -8,7 +8,6 @@ struct GameView: View {
     @Binding var selectedMaze: String?
     @Binding var selectedCharacter: String?
     @State private var characterPosition = CGPoint(x: 0, y: 0)
-    @State private var isColliding: Bool = false
     @State private var showButton: Bool = false
     @State private var timeRemaining: Int = 30
     
@@ -17,7 +16,7 @@ struct GameView: View {
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
     func resetTimer() {
-        timeRemaining = 10 // Reset to 3 minutes
+        timeRemaining = 120 // Reset to 3 minutes
         showButton = false
     }
     
