@@ -49,6 +49,124 @@ struct GameView: View {
         }
     }
     
+    func getPixelColor(image: UIImage, at point: CGPoint) -> UIColor? {
+            guard let cgImage = image.cgImage,
+                  let dataProvider = cgImage.dataProvider,
+                  let pixelData = dataProvider.data as Data? else {
+                print("Failed to get pixel data")
+                return nil
+            }
+            
+            let width = cgImage.width
+            let height = cgImage.height
+            let screenWidth = UIScreen.main.bounds.width
+            let screenHeight = UIScreen.main.bounds.height
+            
+            // Adjusted coordinate mapping
+            let mappedX = Int((point.x + screenWidth/2) / screenWidth * CGFloat(width))
+            let mappedY = Int((point.y + screenHeight/2) / screenHeight * CGFloat(height))
+            
+            let safeX = max(0, min(width - 1, mappedX))
+            let safeY = max(0, min(height - 1, mappedY))
+            
+            let bytesPerPixel = cgImage.bitsPerPixel / 8
+            let pixelIndex = (safeY * width + safeX) * bytesPerPixel
+            
+            guard pixelIndex + bytesPerPixel <= pixelData.count else {
+                print("Pixel index out of bounds")
+                return nil
+            }
+            
+            let red = CGFloat(pixelData[pixelIndex]) / 255.0
+            let green = CGFloat(pixelData[pixelIndex + 1]) / 255.0
+            let blue = CGFloat(pixelData[pixelIndex + 2]) / 255.0
+            
+            let pixelColor = UIColor(red: red, green: green, blue: blue, alpha: 1.0)
+            
+            print("Pixel at (\(safeX), \(safeY)): \(pixelColor)")
+            return pixelColor
+        }
+
+    func checkPixelColor(image: UIImage, position: CGPoint) -> Bool {
+        guard let cgImage = image.cgImage else {
+            print("Cannot get Image")
+            return false
+        }
+
+        let width = cgImage.width
+        let height = cgImage.height
+        let screenWidth = UIScreen.main.bounds.width
+        let screenHeight = UIScreen.main.bounds.height
+        
+        // Преобразование координат персонажа в координаты изображения
+        let mappedX = Int((position.x + screenWidth / 2) / screenWidth * CGFloat(width))
+        let mappedY = Int((position.y + screenHeight / 2) / screenHeight * CGFloat(height))
+
+        // Убедимся, что координаты находятся в пределах изображения
+        let safeX = max(0, min(width - 1, mappedX))
+        let safeY = max(0, min(height - 1, mappedY))
+
+        // Создаем контекст для чтения данных пикселей
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue
+        let context = CGContext(
+            data: nil,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: 4 * width,
+            space: colorSpace,
+            bitmapInfo: bitmapInfo
+        )
+        
+        // Рисуем изображение в контексте
+        context?.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+        
+        // Получаем данные пикселей
+        guard let pixelData = context?.data else {
+            print("Failed to get pixel data")
+            return false
+        }
+        
+        let pixelPtr = pixelData.bindMemory(to: UInt8.self, capacity: width * height * 4)
+        let pixelIndex = (safeY * width + safeX) * 4
+
+        // Get the RGB values
+            let red = pixelPtr[pixelIndex]
+            let green = pixelPtr[pixelIndex + 1]
+            let blue = pixelPtr[pixelIndex + 2]
+            
+            // Debug print
+            print("Pixel at (\(safeX), \(safeY)): R:\(red), G:\(green), B:\(blue)")
+            
+            // Check if it's a valid path (nearly black)
+            let isPath = red < 50 && green < 50 && blue < 50
+            
+            // Return true only if it's a valid path
+            return isPath
+        
+    }
+    
+    func debugImageLoading(url: String) {
+        MazeImageLoader.loadImage(url: url) { image in
+            guard let image = image else {
+                print("Image failed to load: \(url)")
+                return
+            }
+            
+            print("Image successfully loaded")
+            print("Image size: \(image.size)")
+            print("Image scale: \(image.scale)")
+            
+            // Optional: Save image to verify
+            if let data = image.pngData() {
+                let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                let fileURL = documentsPath.appendingPathComponent("debug_maze.png")
+                try? data.write(to: fileURL)
+                print("Image saved to: \(fileURL)")
+            }
+        }
+    }
     
     var body: some View {
         let defaultCharacter = "charM"
@@ -281,16 +399,16 @@ struct GameView: View {
                     
                     if let maze = selectedMaze {
                         ZStack {
-                            RemoteImage(url: getMazeImage(for: labyrinthToUse))
-                                .scaledToFit()
-                                .frame(width: UIScreen.main.bounds.width * 0.9)
-                                .padding(.top, UIScreen.main.bounds.height * 0.1)
-                            
-                            let offsets = getCharacterOffset(for: maze)
                             RemoteImage(url: getCharImage(for: characterToUse))
                                 .scaledToFit()
                                 .frame(width: UIScreen.main.bounds.width * 0.02)
                                 .offset(x: characterPosition.x, y: characterPosition.y)
+                            RemoteImage(url: getMazeImage(for: labyrinthToUse))
+                                .scaledToFit()
+                                .frame(width: UIScreen.main.bounds.width )
+                                .padding(.top, UIScreen.main.bounds.height * 0.1)
+                                .foregroundStyle(.black)
+                            let offsets = getCharacterOffset(for: maze)
                             if showButton {
                                 Button(action: {
                                     resetTimer()
@@ -335,7 +453,17 @@ struct GameView: View {
                         HStack(spacing: 40) { // Adjust the spacing here as needed
                             Button(action: {
                                 let newPosition = CGPoint(x: characterPosition.x - moveIncrement, y: characterPosition.y - moveIncrement)
-                                characterPosition = newPosition
+                                MazeImageLoader.loadImage(url: getMazeImage(for: labyrinthToUse)) { mazeImage in
+                                        if let image = mazeImage {
+                                            print("Attempting move to: \(newPosition)")
+                                            let canMove = checkPixelColor(image: image, position: newPosition)
+                                            if canMove {
+                                                characterPosition = newPosition
+                                            } else {
+                                                print("Movement blocked by black pixel at: \(newPosition)")
+                                            }
+                                        }
+                                    }
                             }) {
                                 Text("↖").font(.title)
                                     .foregroundColor(.white)
@@ -343,8 +471,19 @@ struct GameView: View {
                             }
                             .offset(y: 60)
                             Button(action: {
-                                let newPosition = CGPoint(x: characterPosition.x + moveIncrement, y: characterPosition.y + moveIncrement)
-                                characterPosition = newPosition
+                                let newPosition = CGPoint(x: characterPosition.x + moveIncrement, y: characterPosition.y - moveIncrement)
+                                MazeImageLoader.loadImage(url: getMazeImage(for: labyrinthToUse)) { mazeImage in
+                                        if let image = mazeImage {
+                                            print("Attempting move to: \(newPosition)")
+                                            let canMove = checkPixelColor(image: image, position: newPosition)
+                                            if canMove {
+                                                characterPosition = newPosition
+                                            } else {
+                                                print("Movement blocked by black pixel at: \(newPosition)")
+                                            }
+                                        }
+                                    }
+
                             }) {
                                 Text("↗").font(.title)
                                     .foregroundColor(.white)
@@ -357,7 +496,18 @@ struct GameView: View {
                         VStack { // Add space between buttons
                             Button(action: {
                                 let newPosition = CGPoint(x: characterPosition.x, y: characterPosition.y - moveIncrement)
-                                characterPosition = newPosition
+                                MazeImageLoader.loadImage(url: getMazeImage(for: labyrinthToUse)) { mazeImage in
+                                        if let image = mazeImage {
+                                            print("Attempting move to: \(newPosition)")
+                                            let canMove = checkPixelColor(image: image, position: newPosition)
+                                            if canMove {
+                                                characterPosition = newPosition
+                                            } else {
+                                                print("Movement blocked by black pixel at: \(newPosition)")
+                                            }
+                                        }
+                                    }
+
                             }) {
                                 Text("↑").font(.title)
                                     .foregroundColor(.white)
@@ -367,7 +517,18 @@ struct GameView: View {
                             HStack(spacing: 50) { // Horizontal left and right buttons with spacing
                                 Button(action: {
                                     let newPosition = CGPoint(x: characterPosition.x - moveIncrement, y: characterPosition.y)
-                                    characterPosition = newPosition
+                                    MazeImageLoader.loadImage(url: getMazeImage(for: labyrinthToUse)) { mazeImage in
+                                            if let image = mazeImage {
+                                                print("Attempting move to: \(newPosition)")
+                                                let canMove = checkPixelColor(image: image, position: newPosition)
+                                                if canMove {
+                                                    characterPosition = newPosition
+                                                } else {
+                                                    print("Movement blocked by black pixel at: \(newPosition)")
+                                                }
+                                            }
+                                        }
+
                                 }) {
                                     Text("←").font(.title)
                                         .foregroundColor(.white)
@@ -375,7 +536,18 @@ struct GameView: View {
                                 }
                                 Button(action: {
                                     let newPosition = CGPoint(x: characterPosition.x + moveIncrement, y: characterPosition.y)
-                                    characterPosition = newPosition
+                                    MazeImageLoader.loadImage(url: getMazeImage(for: labyrinthToUse)) { mazeImage in
+                                            if let image = mazeImage {
+                                                print("Attempting move to: \(newPosition)")
+                                                let canMove = checkPixelColor(image: image, position: newPosition)
+                                                if canMove {
+                                                    characterPosition = newPosition
+                                                } else {
+                                                    print("Movement blocked by black pixel at: \(newPosition)")
+                                                }
+                                            }
+                                        }
+
                                 }) {
                                     Text("→").font(.title)
                                         .foregroundColor(.white)
@@ -385,7 +557,18 @@ struct GameView: View {
                             
                             Button(action: {
                                 let newPosition = CGPoint(x: characterPosition.x, y: characterPosition.y + moveIncrement)
-                                characterPosition = newPosition
+                                MazeImageLoader.loadImage(url: getMazeImage(for: labyrinthToUse)) { mazeImage in
+                                        if let image = mazeImage {
+                                            print("Attempting move to: \(newPosition)")
+                                            let canMove = checkPixelColor(image: image, position: newPosition)
+                                            if canMove {
+                                                characterPosition = newPosition
+                                            } else {
+                                                print("Movement blocked by black pixel at: \(newPosition)")
+                                            }
+                                        }
+                                    }
+
                             }) {
                                 Text("↓").font(.title)
                                     .foregroundColor(.white)
@@ -398,7 +581,18 @@ struct GameView: View {
                         HStack(spacing: 40) { // Adjust the spacing here as needed
                             Button(action: {
                                 let newPosition = CGPoint(x: characterPosition.x - moveIncrement, y: characterPosition.y + moveIncrement)
-                                characterPosition = newPosition
+                                MazeImageLoader.loadImage(url: getMazeImage(for: labyrinthToUse)) { mazeImage in
+                                        if let image = mazeImage {
+                                            print("Attempting move to: \(newPosition)")
+                                            let canMove = checkPixelColor(image: image, position: newPosition)
+                                            if canMove {
+                                                characterPosition = newPosition
+                                            } else {
+                                                print("Movement blocked by black pixel at: \(newPosition)")
+                                            }
+                                        }
+                                    }
+
                             }) {
                                 Text("↙").font(.title)
                                     .foregroundColor(.white)
@@ -407,7 +601,18 @@ struct GameView: View {
                             .offset(y: -60)
                             Button(action: {
                                 let newPosition = CGPoint(x: characterPosition.x + moveIncrement, y: characterPosition.y + moveIncrement)
-                                characterPosition = newPosition
+                                MazeImageLoader.loadImage(url: getMazeImage(for: labyrinthToUse)) { mazeImage in
+                                        if let image = mazeImage {
+                                            print("Attempting move to: \(newPosition)")
+                                            let canMove = checkPixelColor(image: image, position: newPosition)
+                                            if canMove {
+                                                characterPosition = newPosition
+                                            } else {
+                                                print("Movement blocked by black pixel at: \(newPosition)")
+                                            }
+                                        }
+                                    }
+
                             }) {
                                 Text("↘").font(.title)
                                     .foregroundColor(.white)
@@ -440,6 +645,9 @@ struct GameView: View {
                     } else {
                         print("No maze selected")
                     }
+                if let maze = selectedMaze {
+                       debugImageLoading(url: getMazeImage(for: maze))
+                   }
                 // Debug prints
                 print("GameView appeared")
                 print("Selected character: \(selectedCharacter ?? "none")")
